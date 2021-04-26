@@ -37,7 +37,7 @@ class SendPanicToWayneJob implements ShouldQueue
     public function handle()
     {
         $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . env('WAYNE_ENTERPRIZE_TOKEN') . 'kjnkjn',
+            'Authorization' => 'Bearer ' . env('WAYNE_ENTERPRIZE_TOKEN'),
             'Accept'        => 'application/json',
                 ])->post(env('WAYNE_ENTERPRIZE_URL'). 'panic/create', $this->data);
         $response_data = json_decode($response->body());
