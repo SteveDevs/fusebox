@@ -8,4 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Panic extends Model
 {
     use HasFactory;
+
+    protected $fillable = 
+    [
+        'user_id',
+        'longitude',
+        'latitude',
+        'panic_type',
+        'details',
+        'created_at',
+    ];
 }

@@ -17,16 +17,26 @@ class AuthApiController extends BaseController
      */
     public function login(Request $request)
     {
+        $data = $request->all(); 
+
+        $validator = Validator::make($data,[
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError('validation failure – missing/incorrect variables', 400);
+        }
+
         if(Auth::attempt(['email' => $request->email, 'password' => $request->password])){ 
             $user = Auth::user(); 
-            $success['token'] =  $user->createToken('MyApp')->accessToken; 
-            $success['name'] =  $user->name;
-            $success['id'] =  $user->id;
-
-            return $this->sendResponse($success, 'Action completed successfully');
+            $data = [
+                'api_access_token' => $user->createToken('MyApp')->accessToken,
+            ];
+            return $this->sendResponse($data);
         } 
         else{ 
-            return $this->sendError('Unauthorised.', ['error'=>'Unauthorised']);
+            return $this->sendError('unauthorised', 401);
         } 
     }
 

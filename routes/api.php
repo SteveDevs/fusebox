@@ -19,16 +19,15 @@ use App\Http\Controllers\API\AuthApiController;
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });
-
-Route::post('login', [AuthApiController::class, 'login']);
-
-Route::post('panic/create', [PanicAPIController::class, 'store'])->name('panic.create');
-
-Route::post('panic/cancel', [PanicAPIController::class, 'store'])->name('panic.create');
-
-
-Route::post('panic/get', [PanicAPIController::class, 'store'])->name('panic.create');
-
 Route::group(['middleware' => ['cors', 'json.response']], function () {
-    
+
+    Route::post('login', [AuthApiController::class, 'login']);
+    Route::middleware('auth:api')->group(function () {
+        Route::post('panic/create', [PanicAPIController::class, 'store'])->name('panic.create');
+
+        Route::post('panic/cancel', [PanicAPIController::class, 'cancel'])->name('panic.cancel');
+
+
+        Route::get('panic/get', [PanicAPIController::class, 'getHistory'])->name('panic.get');
+    });
 });

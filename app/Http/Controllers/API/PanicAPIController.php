@@ -7,73 +7,74 @@ use App\Http\Controllers\API\BaseController as BaseController;
 use App\Models\Panic;
 use Validator;
 use App\Http\Resources\PanicResource;
-   
+use App\Jobs\SendCancelPanicToWayneJob;
+use App\Jobs\SendPanicToWayneJob;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Http;
+
 class PanicAPIController extends BaseController
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function get(Request $request)
-    {
 
-        $user = DB::table('users')->where('id', '=', $request->get('user_id'))->first();
-    
-        return $this->sendResponse($user->topped, 'Topped retrieved successfully.');
+    public function getHistory(){
+        $panics = Panic::all();
+
+        return $this->sendResponse(['panics' => PanicResource::collection($panics)]);
     }
-
 
     public function store(Request $request)
     {
-
+        //$token = $request->bearerToken();
         $data = $request->all();
 
         $validator = Validator::make($data,[
-            'topped' => 'required'
+            'longitude' => 'required|string',
+            'latitude' => 'required|string',
         ]);
 
         if ($validator->fails()) {
-            return response(['error' => $validator->errors(), 'Validation Error']);
+            return $this->sendError("validation failure – missing/incorrect variables", 400);
         }
+        $user = auth()->user();
+        $data = [
+            'user_id' => $user->id,
+            'longitude' => $request->get('longitude'),
+            'latitude' => $request->get('latitude'),
+            'panic_type' => ($request->get('panic_type') !== null ) ? $request->get('panic_type') : '',
+            'details' => ($request->get('details') !== null) ? $request->get('details') : '',
+        ];
 
-        $user = User::find($request->get('user_id'));
-        $user->topped = $user->topped + $request->get('topped');
-        $user->save();
+        $panic = Panic::create($data);
 
-        $transaction['type'] = 'topup';
-        $transaction['amount'] = $request->get('topped');
-        $transaction['user_id'] = $request->get('user_id');
-
-        Transaction::create($transaction);
-
-        return response(['topup' => new TopupResource($user->topped), 'message' => 'Created successfully'], 201);
+        $data['reference_id'] = $panic->id;
+        $data['user_name'] = $user->name;
+        unset($data['user_id']);
+        
+        SendPanicToWayneJob::dispatch($data);
+        
+        return $this->sendResponse(['panic_id' => $panic->id], "Panic raised successfully");
     }
 
-     public function update(Request $request)
+     public function cancel(Request $request)
     {
-
         $data = $request->all();
 
         $validator = Validator::make($data,[
-            'topup' => 'required'
+            'panic_id' => 'required',
         ]);
 
         if ($validator->fails()) {
-            return response(['error' => $validator->errors(), 'Validation Error']);
+            return $this->sendError("validation failure – missing/incorrect variables", 400);
+        }
+        
+        $panic = Panic::where('wayne_panic_id', $request->get('panic_id'))->first();
+        if(!$panic){
+            return $this->sendError("panic not found", 400);
         }
 
-        $user = DB::table('users')->where('id', '=', $request->get('user_id'))->first();
+        SendCancelPanicToWayneJob::dispatch($panic->wayne_panic_id);
+        $panic->delete();
 
-        $new_topped = $user->topped + $request->get('topup');
-
-        DB::table('users')->where('id', $request->get('user_id'))->update(array('topped' => $new_topped));
-        $transaction['type'] = 'topup';
-        $transaction['amount'] = $request->get('topup');
-        $transaction['user_id'] = $request->get('user_id');
-
-        Transaction::create($transaction);
-
-        return response(['topup' => $user->topped, 'message' => 'Created successfully'], 201);
+        return $this->sendResponse((new \stdClass()), "Panic cancelled successfully");
     }
 }

@@ -16,10 +16,11 @@ class CreatePanicsTable extends Migration
         Schema::create('panics', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('user_id')->unsigned();
+            $table->bigInteger('wayne_panic_id')->nullable();
             $table->string('longitude');
-            $table->string('latitiude');
-            $table->enum('panic_type', ['Bank Robbery', 'Assassins on the loose']);
-            $table->text('details');
+            $table->string('latitude');
+            $table->string('panic_type')->default('');
+            $table->mediumText('details');
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
